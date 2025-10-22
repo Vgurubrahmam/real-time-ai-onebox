@@ -17,4 +17,10 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use("/", searchRoutes);
 
-app.listen(3000, () => console.log('🚀 Server running on port 3000'));
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(3000, () => console.log('🚀 Server running on port 3000'));
+}
+
+// Export for Vercel
+export default app;
