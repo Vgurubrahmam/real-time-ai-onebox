@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import { API_BASE_URL } from "./config";
 
 interface Email {
   id: string;
@@ -91,7 +92,7 @@ function App() {
 
   async function fetchAccounts() {
     try {
-      const res = await fetch("http://localhost:3000/api/accounts");
+      const res = await fetch(`${API_BASE_URL}/api/accounts`);
       const data = await res.json();
       setAccounts(data);
       if (data.length > 0) setSelectedAccount(data[0].id);
@@ -104,7 +105,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`http://localhost:3000/api/emails?page=${page}&limit=${limit}`);
+      const res = await fetch(`${API_BASE_URL}/api/emails?page=${page}&limit=${limit}`);
       const data = await res.json();
       setEmails(data.emails || []);
       setPagination({
@@ -129,7 +130,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      let url = `http://localhost:3000/api/emails/search?q=${encodeURIComponent(searchQuery)}&accountId=${selectedAccount}`;
+      let url = `${API_BASE_URL}/api/emails/search?q=${encodeURIComponent(searchQuery)}&accountId=${selectedAccount}`;
       if (selectedFolder) {
         url += `&folder=${selectedFolder}`;
       }
@@ -171,7 +172,7 @@ function App() {
     setSuggestedReply(null);
 
     try {
-      const res = await fetch(`http://localhost:3000/api/emails/${emailId}/suggest-reply`, {
+      const res = await fetch(`${API_BASE_URL}/api/emails/${emailId}/suggest-reply`, {
         method: "POST",
       });
 
@@ -200,7 +201,7 @@ function App() {
   // CRUD Operations
   async function createEmail(emailData: EmailFormData) {
     try {
-      const res = await fetch("http://localhost:3000/api/emails/index", {
+      const res = await fetch(`${API_BASE_URL}/api/emails/index`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

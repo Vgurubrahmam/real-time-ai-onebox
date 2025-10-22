@@ -4,6 +4,7 @@ const QDRANT_PORT = process.env.QDRANT_PORT || "6333";
 
 export const qdrantClient = new QdrantClient({
   url: `http://${QDRANT_HOST}:${QDRANT_PORT}`,
+  checkCompatibility: false,
 });
 
 export const COLLECTION_NAME = "product_knowledge";
