@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --loader ts-node/esm src/index.ts",
     "dev": "nodemon --exec node --loader ts-node/esm src/index.ts",
+    "build": "tsc",
     "setup:index": "node --loader ts-node/esm src/setup/createEmailIndex.ts",
     "setup:knowledge": "node --loader ts-node/esm src/setup/seedProductKnowledge.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
