@@ -6,46 +6,6 @@ import type { EmailDocument } from "../types/emailDocument.js";
 
 const router = express.Router();
 
-// Mock data for when Elasticsearch is not available
-const mockEmails: EmailDocument[] = [
-  {
-    id: "email-1",
-    accountId: "acc1",
-    folder: "INBOX",
-    subject: "Welcome to OneBox!",
-    body: "Thank you for using OneBox email management system. This is a demo email.",
-    from: "support@onebox.com",
-    to: ["user@example.com"],
-    date: new Date("2025-01-15T10:30:00Z"),
-    aiCategory: "Interested",
-    indexedAt: new Date()
-  },
-  {
-    id: "email-2",
-    accountId: "acc1",
-    folder: "INBOX",
-    subject: "Meeting Request",
-    body: "Hi, I'd like to schedule a meeting to discuss our project. Are you available next week?",
-    from: "client@example.com",
-    to: ["user@example.com"],
-    date: new Date("2025-01-16T14:20:00Z"),
-    aiCategory: "Meeting Booked",
-    indexedAt: new Date()
-  },
-  {
-    id: "email-3",
-    accountId: "acc2",
-    folder: "INBOX",
-    subject: "Newsletter Subscription",
-    body: "You've successfully subscribed to our weekly newsletter. Stay tuned for updates!",
-    from: "newsletter@company.com",
-    to: ["user@example.com"],
-    date: new Date("2025-01-17T09:00:00Z"),
-    aiCategory: "Uncategorized",
-    indexedAt: new Date()
-  }
-];
-
 
   // GET /api/accounts
  
@@ -71,21 +31,31 @@ router.get("/api/emails", async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const from = (Number(page) - 1) * Number(limit);
 
-    // Use mock data by default (skip Elasticsearch to avoid timeout)
-    console.log("Using mock data for emails");
-    const start = from;
-    const end = from + Number(limit);
-    const paginatedEmails = mockEmails.slice(start, end);
+    const result = await esClient.search({
+      index: "emails",
+      from,
+      size: Number(limit),
+      sort: [{ date: { order: "desc" } }],
+      query: { match_all: {} },
+    });
+
+    const emails = result.hits.hits.map((hit: any) => ({
+      id: hit._id,
+      ...hit._source
+    }));
     
     res.json({
       page: Number(page),
       limit: Number(limit),
-      total: mockEmails.length,
-      emails: paginatedEmails,
+      total: typeof result.hits.total === 'object' ? result.hits.total.value : result.hits.total,
+      emails,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Fetch emails error:", error);
-    res.status(500).json({ error: "Failed to fetch emails" });
+    res.status(500).json({ 
+      error: "Failed to fetch emails",
+      details: error.message 
+    });
   }
 });
 
@@ -101,20 +71,41 @@ router.get("/api/emails/search", async (req, res) => {
       });
     }
 
-    // Use mock data search (skip Elasticsearch to avoid timeout)
-    console.log("Searching mock data");
-    const query = (q as string).toLowerCase();
-    const filtered = mockEmails.filter((email) => {
-      const matchesQuery = email.subject.toLowerCase().includes(query) || 
-                         email.body.toLowerCase().includes(query);
-      const matchesAccount = email.accountId === accountId;
-      const matchesFolder = !folder || email.folder === folder;
-      return matchesQuery && matchesAccount && matchesFolder;
+    const must: any[] = [
+      { 
+        multi_match: { 
+          query: q as string, 
+          fields: ["subject", "body"],
+          type: "best_fields"
+        } 
+      }
+    ];
+    
+    const filter: any[] = [{ term: { accountId: accountId as string } }];
+
+    if (folder) {
+      filter.push({ term: { folder: folder as string } });
+    }
+
+    const result = await esClient.search({
+      index: "emails",
+      query: {
+        bool: { must, filter },
+      },
     });
-    res.json(filtered);
-  } catch (error) {
+
+    const emails = result.hits.hits.map((hit: any) => ({
+      id: hit._id,
+      ...hit._source
+    }));
+    
+    res.json(emails);
+  } catch (error: any) {
     console.error("Search error:", error);
-    res.status(500).json({ error: "Search failed" });
+    res.status(500).json({ 
+      error: "Search failed",
+      details: error.message 
+    });
   }
 });
 
@@ -142,9 +133,8 @@ router.post("/api/emails/index", async (req, res) => {
       });
     }
 
-    // Add to mock data (skip Elasticsearch to avoid timeout)
-    console.log("Adding email to mock data");
-    mockEmails.unshift(emailData);
+    // Index email in Elasticsearch
+    await indexEmail(emailData);
 
     res.status(201).json({
       success: true,
@@ -153,7 +143,10 @@ router.post("/api/emails/index", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Index error:", error);
-    res.status(500).json({ error: "Failed to index email", details: error.message });
+    res.status(500).json({ 
+      error: "Failed to index email", 
+      details: error.message 
+    });
   }
 });
 
@@ -162,28 +155,45 @@ router.post("/api/emails/:id/suggest-reply", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Search in mock data (skip Elasticsearch to avoid timeout)
-    console.log("Searching for email in mock data");
-    const email = mockEmails.find(e => e.id === id);
+    // Fetch the email from Elasticsearch
+    const result = await esClient.get({
+      index: "emails",
+      id: id,
+    });
 
-    if (!email) {
+    if (!result.found) {
       return res.status(404).json({ error: "Email not found" });
     }
+
+    const email: any = result._source;
     
+    // Construct the full email text for RAG
+    const emailText = `Subject: ${email.subject}\nFrom: ${email.from}\nDate: ${email.date}\n\n${email.body}`;
+
     console.log(`Generating suggested reply for email ${id}...`);
 
-    // Use simple AI reply (skip RAG to avoid timeout)
-    console.log("Using simple AI response");
-    
+    // Run RAG pipeline
+    const ragResult = await generateSuggestedReply(emailText);
+
     res.json({
       emailId: id,
-      suggestedReply: `Thank you for your email regarding "${email.subject}". We have received your message and will respond shortly.\n\nBest regards,\nOneBox Team`,
-      confidence: 75,
-      context: [{ category: "General Response", score: 0.75 }],
+      suggestedReply: ragResult.suggestedReply,
+      confidence: ragResult.confidence,
+      context: ragResult.retrievedContext.map(ctx => ({
+        category: ctx.category,
+        score: ctx.score,
+      })),
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error("Suggest reply error:", error);
+    
+    if (error.message?.includes("knowledge base")) {
+      return res.status(503).json({ 
+        error: "Knowledge base not initialized. Please run the setup script first.",
+        details: error.message 
+      });
+    }
     
     res.status(500).json({ 
       error: "Failed to generate suggested reply", 

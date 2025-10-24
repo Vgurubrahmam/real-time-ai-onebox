@@ -1,11 +1,24 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-const QDRANT_HOST = process.env.QDRANT_HOST || "localhost";
-const QDRANT_PORT = process.env.QDRANT_PORT || "6333";
+import dotenv from "dotenv";
+dotenv.config();
 
+// Qdrant Cloud client with API key authentication
 export const qdrantClient = new QdrantClient({
-  url: `http://${QDRANT_HOST}:${QDRANT_PORT}`,
-  checkCompatibility: false,
+  url: process.env.QDRANT_URL || "http://localhost:6333",
+  apiKey: process.env.QDRANT_API_KEY || undefined,
 });
 
 export const COLLECTION_NAME = "product_knowledge";
 export const EMBEDDING_SIZE = 768; // Gemini text-embedding-004 dimension
+
+// Helper function to check if Qdrant is available
+export async function isQdrantAvailable(): Promise<boolean> {
+  try {
+    await qdrantClient.getCollections();
+    console.log('✅ Qdrant Cloud connected successfully');
+    return true;
+  } catch (error) {
+    console.error("❌ Qdrant connection failed:", error);
+    return false;
+  }
+}
