@@ -1,12 +1,19 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
+
+// Load environment variables
 dotenv.config();
 
 // Qdrant Cloud client with API key authentication
-export const qdrantClient = new QdrantClient({
+const qdrantConfig: any = {
   url: process.env.QDRANT_URL || "http://localhost:6333",
-  apiKey: process.env.QDRANT_API_KEY || undefined,
-});
+};
+
+if (process.env.QDRANT_API_KEY) {
+  qdrantConfig.apiKey = process.env.QDRANT_API_KEY;
+}
+
+export const qdrantClient = new QdrantClient(qdrantConfig);
 
 export const COLLECTION_NAME = "product_knowledge";
 export const EMBEDDING_SIZE = 768; // Gemini text-embedding-004 dimension

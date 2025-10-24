@@ -38,15 +38,20 @@ async function retrieveContext(queryText: string, topK: number = 3): Promise<Ret
 
     // Format results
     const context: RetrievedContext[] = searchResults.map((result: any) => ({
-      text: result.payload.text,
-      category: result.payload.category,
+      text: result.payload?.text || '',
+      category: result.payload?.category || 'Unknown',
       score: result.score,
     }));
 
     console.log(`Retrieved ${context.length} relevant context chunks`);
     return context;
-  } catch (error) {
-    console.error("Error retrieving context:", error);
+  } catch (error: any) {
+    console.error("Error retrieving context:", error.message);
+    // Return empty array if collection doesn't exist yet
+    if (error.message?.includes('Not found') || error.message?.includes('doesn\'t exist')) {
+      console.warn('Knowledge base collection not found. Please seed it first.');
+      return [];
+    }
     throw new Error("Failed to retrieve context from vector database");
   }
 }

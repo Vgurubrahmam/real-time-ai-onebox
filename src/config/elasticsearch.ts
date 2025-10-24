@@ -1,5 +1,7 @@
 import { Client } from "@elastic/elasticsearch";
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
+
+// Load environment variables
 dotenv.config();
 
 // Create Elasticsearch Cloud client
@@ -11,9 +13,14 @@ const authConfig = process.env.ELASTIC_API_KEY
       password: process.env.ELASTIC_PASSWORD || ''
     };
 
+// Validate Cloud ID exists
+if (!process.env.ELASTIC_CLOUD_ID) {
+    throw new Error('ELASTIC_CLOUD_ID environment variable is not set');
+}
+
 export const esClient = new Client({
     cloud: {
-        id: process.env.ELASTIC_CLOUD_ID || ''
+        id: process.env.ELASTIC_CLOUD_ID
     },
     auth: authConfig,
     maxRetries: 3,
