@@ -150,6 +150,84 @@ router.post("/api/emails/index", async (req, res) => {
   }
 });
 
+// PUT /api/emails/:id - Update an existing email
+router.put("/api/emails/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if email exists
+    const exists = await esClient.exists({
+      index: "emails",
+      id: id,
+    });
+
+    if (!exists) {
+      return res.status(404).json({ error: "Email not found" });
+    }
+
+    // Prepare update data (only include fields that are provided)
+    const updateData: any = {};
+    
+    if (req.body.subject !== undefined) updateData.subject = req.body.subject;
+    if (req.body.body !== undefined) updateData.body = req.body.body;
+    if (req.body.folder !== undefined) updateData.folder = req.body.folder;
+    if (req.body.aiCategory !== undefined) updateData.aiCategory = req.body.aiCategory;
+    if (req.body.to !== undefined) updateData.to = req.body.to;
+    
+    // Update the document in Elasticsearch
+    await esClient.update({
+      index: "emails",
+      id: id,
+      doc: updateData,
+    });
+
+    res.json({
+      success: true,
+      message: "Email updated successfully",
+      emailId: id,
+    });
+  } catch (error: any) {
+    console.error("Update email error:", error);
+    res.status(500).json({ 
+      error: "Failed to update email", 
+      details: error.message 
+    });
+  }
+});
+
+// DELETE /api/emails/:id - Delete an email
+router.delete("/api/emails/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete the document from Elasticsearch
+    const result = await esClient.delete({
+      index: "emails",
+      id: id,
+    });
+
+    if (result.result === "deleted") {
+      res.json({
+        success: true,
+        message: "Email deleted successfully",
+        emailId: id,
+      });
+    } else {
+      res.status(404).json({ error: "Email not found" });
+    }
+  } catch (error: any) {
+    if (error.meta?.statusCode === 404) {
+      return res.status(404).json({ error: "Email not found" });
+    }
+    
+    console.error("Delete email error:", error);
+    res.status(500).json({ 
+      error: "Failed to delete email", 
+      details: error.message 
+    });
+  }
+});
+
 // POST /api/emails/:id/suggest-reply
 router.post("/api/emails/:id/suggest-reply", async (req, res) => {
   try {
