@@ -229,10 +229,19 @@ function App() {
 
   async function updateEmail(emailId: string, emailData: Partial<EmailFormData>) {
     try {
+      // Only send fields that can be updated (not accountId or from)
+      const updatePayload: Partial<EmailFormData> = {};
+      if (emailData.subject !== undefined) updatePayload.subject = emailData.subject;
+      if (emailData.body !== undefined) updatePayload.body = emailData.body;
+      if (emailData.folder !== undefined) updatePayload.folder = emailData.folder;
+      if (emailData.to !== undefined) updatePayload.to = emailData.to;
+
+      console.log('Updating email:', emailId, updatePayload);
+
       const res = await fetch(`${API_BASE_URL}/api/emails/${emailId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailData)
+        body: JSON.stringify(updatePayload)
       });
 
       if (!res.ok) {
@@ -243,6 +252,7 @@ function App() {
       const result = await res.json();
       alert("Email updated successfully!");
       setShowEmailModal(false);
+      setSelectedEmail(null);
       resetEmailForm();
       fetchAllEmails(pagination.page, pagination.limit);
       return result;
