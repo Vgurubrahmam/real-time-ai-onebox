@@ -79,7 +79,7 @@ function App() {
     limit: 10,
     total: 0
   });
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
 
   const folders = ["INBOX", "Sent", "Drafts", "Spam"];
   const categories = ["All", "Interested", "Meeting Booked", "Not Interested", "Spam", "Out of Office", "Uncategorized"];
@@ -227,6 +227,32 @@ function App() {
     }
   }
 
+  async function updateEmail(emailId: string, emailData: Partial<EmailFormData>) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/emails/${emailId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update email");
+      }
+
+      const result = await res.json();
+      alert("Email updated successfully!");
+      setShowEmailModal(false);
+      resetEmailForm();
+      fetchAllEmails(pagination.page, pagination.limit);
+      return result;
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Update email error:", error);
+      alert(error.message || "Failed to update email");
+    }
+  }
+
   function resetEmailForm() {
     setEmailForm({
       accountId: "",
@@ -241,6 +267,7 @@ function App() {
 
   function openEmailModal(email?: Email) {
     if (email) {
+      setSelectedEmail(email);
       setEmailForm({
         accountId: email.accountId,
         folder: email.folder,
@@ -251,6 +278,7 @@ function App() {
       });
       setIsEditing(true);
     } else {
+      setSelectedEmail(null);
       resetEmailForm();
     }
     setShowEmailModal(true);
@@ -631,7 +659,11 @@ function App() {
               <div className="p-6">
                 <form onSubmit={(e) => {
                   e.preventDefault();
-                  createEmail(emailForm);
+                  if (isEditing && selectedEmail) {
+                    updateEmail(selectedEmail.id, emailForm);
+                  } else {
+                    createEmail(emailForm);
+                  }
                 }} className="space-y-4">
                   {/* Account Selection */}
                   <div>
